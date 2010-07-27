@@ -78,7 +78,7 @@ class _CounterMixin(object):
     def count(self): return self._count     
 
     
-class _OptionsDict(dict, _CounterMixin) : pass     
+class _OptionsDict(_Dict, _CounterMixin) : pass     
 
 def _get_keys( argv ) :     
         

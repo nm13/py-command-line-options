@@ -15,3 +15,8 @@ if posarg < len( sys.argv ):
     print sys.argv[ posarg ]     
 
 """
+
+if cmdopt.options['O'] is None and cmdopt.options['option'] is None:
+
+    print " neither '-o' nor '--option' keys were specified ! "     
+    
