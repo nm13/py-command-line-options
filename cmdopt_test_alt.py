@@ -1,7 +1,7 @@
 import sys
 import cmdopt
 
-print cmdopt.options
+## print cmdopt.options
 
 # print sys.argv
 # print cmdopt.options.count()     
@@ -19,7 +19,10 @@ def get_option( dic, key, default = None ) :
         
 
 cmdopt.options.__class__.get_option  =  get_option     
-options = cmdopt.options     
+## options = cmdopt.options     
+options = cmdopt.string_options     
+
+print "raw values:", options
 
 # if cmdopt.options['o'] is None and options['option'] is None:
 if options.get_option('option') is None:
@@ -39,4 +42,5 @@ conv_table = {    "i,int"    : int
              }
 
 
-print options.convert( conv_table )  
+print "converted values:", options.convert( conv_table )  
+

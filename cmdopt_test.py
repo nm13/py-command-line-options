@@ -1,7 +1,10 @@
 import sys
 import cmdopt
 
-print cmdopt.options
+print "options as strings:", cmdopt.string_options
+
+print "options as Python values:", cmdopt.options
+
 print "positional arguments:", cmdopt.options.args
 
 # print sys.argv

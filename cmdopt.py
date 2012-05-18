@@ -79,29 +79,111 @@ def _get_key( arg ) :
         return ret     
 
 
+# -----------------------------------------------------------------------------
+
+#
+# evaluate the expression by Python rules ( in an empty context, so that no local namespace (except the built-in one, obviously) can affect it )
+#
+
+# we might want to pass 'None' as a value, so we need "own None" :  
+
+class _MyNone : 
+    """ while the class itself is evaluated to True, its instances would be "untrue" by design! """
+    
+    def __nonzero__(self):
+        
+        return 0
+
+NONE = _MyNone()
+
+
+def _try_eval( expr ) :
+    """ try: eval( expr, {} ); except: return None """
+    
+    ret =  NONE
+    try:
+        ret = eval( expr, {} )
+    except:
+        pass
+        
+    return ret
+
+
+def _eval_or_leave( expr ):
+    """ try to evaluate the expression, else return it as is """
+    
+    value = _try_eval( expr )
+            
+    if value is NONE : 
+        value = expr
+
+    return value
+
+
+# -----------------------------------------------------------------------------
+
 # 
 # want to do things like "if opts['k'] is None and opts[keys] is not None : ... "     
 # 
-class _Dict(dict):     
+class _Dict( dict ):     
 
     def __getitem__(self, key) :     
     
         return self.get(key)     
 
 
+
 class _OptionsDict(_Dict) :  
 
     """ a _Dict( dict ) with some additional fields -- e.g. 'args' (a list of all "ordered / non-named" arguments) """
 
-    ## pass # todo: add a "convert()" method
     # for "__init__", see _get_keys() below 
-    
+
+    def try_eval( self ) : 
+        """ 
+            try to convert the values following Python rules ;
+            
+            in code:
+        
+            try: 
+                return eval( expr, {} )
+            except:
+                return expr
+        """
+
+        # same could be achieved via " .convert( { '*' : < myeval(expr) or expr >} ) "     
+        
+        result = self.__class__() 
+        result.args = self.args[:] # copy positional arguments  
+
+        for key, value in self.iteritems() :  
+            
+            result[ key ] = _eval_or_leave( value )
+            
+        return result
+        
+        
+        """
+        for key, raw_value in self.iteritems() :  
+            
+            evaluated = _try_eval( raw_value )
+            
+            if evaluated is not NONE :
+                result[ key ] = evaluated 
+            else :
+                result[ key ] = raw_value
+                
+        return result
+        """
+        
+
     def convert( self, table ) :  
         """ the "conversion table" is a dict of a form:
         
             {
                 "k,key" : lambda arg : int(arg) # or just 'int'
                 ...
+                '*' : default handler # optional 
             }
         
             i.e. the table 'key' is a string containing a comma-separated list of arguments (may be just one: "key" or "k" ) ,
@@ -111,9 +193,15 @@ class _OptionsDict(_Dict) :
             
         """
         
+        # result = _OptionsDict()
+        result = self.__class__() 
+        result.args = self.args[:] # copy positional arguments  
+        
         # the internal lookup table  
         # functions = {}
         functions = _Dict() # __getitem__ = get 
+        # functions.default = lambda arg: arg # " '*': id() "  
+        functions.default = None 
         
         # fill it  
         for key, value in table.iteritems() :  
@@ -124,14 +212,19 @@ class _OptionsDict(_Dict) :
                 
                 functions[ k.strip() ] = value  
                 
+                # the 'default' handler
+                if k == '*' : 
+                    functions.default = value  
+                
             
         # now apply it  
         for key, value in self.iteritems() :  
             
-            func = functions[key] 
+            func = functions[key] or functions.default 
             if func : 
                 try:
-                    self[ key ] = func( value )  
+                    ## self[ key ] = func( value )  
+                    result[ key ] = func( value )  
                 # except Exception as e :
                 # want to be backward-compatible with 2.5 :
                 except:
@@ -167,10 +260,12 @@ class _OptionsDict(_Dict) :
                     # re-raise finally  
                     raise  
                     
+            else: # no conversion function ( even no default one )
+                # -- then leave it : 
+                result[ key ] = value  
                 
             
-        # for convenience :  
-        return self     
+        return result     
     
 
 
@@ -257,8 +352,19 @@ def _get_keys( argv ) :
 ## # debug 
 ## print sys.argv     
 
+std_eval = eval
+# try_eval = lambda expr : _try_eval( expr ) or expr
+try_eval = _eval_or_leave
 
-options = _get_keys( sys.argv[1:] )     
+## options = _get_keys( sys.argv[1:] )     
+# options as strings
+string_options = _get_keys( sys.argv[1:] )     
+# trying to evaluate them as Python expressions, if possible
+options = string_options.try_eval()
+
+
+# # local rename ( for better safety from errors, this line should be the last one in the module ) 
+# eval = try_eval
 
 
 if __name__ == "__main__" :
